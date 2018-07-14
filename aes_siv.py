@@ -100,7 +100,7 @@ class AES_SIV:
         ad_len = len(ad)
 
         out = bytearray(ciphertext_len - 16)
-        out_ptr = __ffi.cast("unsigned char*", _ffi.from_buffer(out))
+        out_ptr = _ffi.cast("unsigned char*", _ffi.from_buffer(out))
         out_len = _ffi.new("size_t[1]")
         out_len[0] = ciphertext_len - 16
 
