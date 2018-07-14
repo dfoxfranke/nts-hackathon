@@ -5,7 +5,10 @@ RT_NEXT_PROTO_NEG = 1
 RT_ERROR = 2
 RT_WARNING = 3
 RT_AEAD_NEG = 4
-RT_NEW_COOKIE = 5 
+RT_NEW_COOKIE = 5
+
+ERR_UNREC_CRIT = 0
+ERR_BAD_REQUEST = 1
 
 class Record:
     def __init__(self, rec=None):
@@ -23,7 +26,7 @@ class Record:
         self.rec_type = crit_type & 0x7fff
         self.body = rec[4:body_len+4]
 
-    def __length__(self):
+    def __len__(self):
         return len(self.body)+4
         
     def __bytes__(self):
@@ -31,3 +34,11 @@ class Record:
         if self.critical:
             crit_type |= 0x8000
         return struct.pack(">HH", crit_type, len(self.body)) + self.body
+
+    @classmethod
+    def make(cls, critical, rec_type, body):
+        rec = Record()
+        rec.critical = critical
+        rec.rec_type = rec_type
+        rec.body = body
+        return rec
