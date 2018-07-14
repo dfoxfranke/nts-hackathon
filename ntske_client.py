@@ -43,19 +43,19 @@ def main(argv):
     ssl.set_tlsext_host_name(bytes(host, "utf-8"))
     ssl.connect(addrs[0][4])
     ssl.do_handshake()
-    if ssl.get_alpn_proto_negotiated != b"ntske/1":
+    if ssl.get_alpn_proto_negotiated() != b"ntske/1":
         print("Failed to negotiate ntske/1", file=sys.stderr)
         return 1
 
     npn_neg = Record()
     npn_neg.critical = True
     npn_neg.rec_type = RT_NEXT_PROTO_NEG
-    npn_neg.body = struct.pack(">H", 15)
+    npn_neg.body = struct.pack(">H", 0)
     
     aead_neg = Record()
     aead_neg.critical = True
     aead_neg.rec_type = RT_AEAD_NEG
-    aead_neg.body = struct.pack(">H", 0)
+    aead_neg.body = struct.pack(">H", 15)
 
     eom = Record()
     eom.critical = True
@@ -73,9 +73,12 @@ def main(argv):
         if(len(resp) < 4):
             print("Premature end of server response", file=sys.stderr)
             return 1
-        resp += ssl.recv(struct.unpack(">H", resp[2:4])[0])
+        body_len = struct.unpack(">H", resp[2:4])[0]
+        if body_len > 0:
+            resp += ssl.recv(body_len)
         record = Record(resp)
-        if record.rec_type == END_OF_MESSAGE:
+        print(record.critical, record.rec_type, record.body)
+        if record.rec_type == RT_END_OF_MESSAGE:
             break
         elif record.rec_type == RT_NEXT_PROTO_NEG:
             if npn_ack:
@@ -118,8 +121,8 @@ def main(argv):
         print("No cookies provided in server response", file=sys.stderr)
         return 1
 
-    c2s_key = export_key_materials(ssl, 32, b"EXPORTER-network-time-security/1", b'\0\0\0\x0f\x00')
-    s2c_key = export_key_materials(ssl, 32, b"EXPORTER-network-time-security/1", b'\0\0\0\x0f\x01')
+    c2s_key = export_keying_materials(ssl, 32, b"EXPORTER-network-time-security/1", b'\0\0\0\x0f\x00')
+    s2c_key = export_keying_materials(ssl, 32, b"EXPORTER-network-time-security/1", b'\0\0\0\x0f\x01')
 
     print("C2S: " + binascii.hexlify(c2s_key).decode('utf-8'))
     print("S2C: " + binascii.hexlify(s2c_key).decode('utf-8'))
